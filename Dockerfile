@@ -39,12 +39,13 @@ ENV PORT=3000
 
 # Copy package.json and install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production && npm install dotenv
 
 # Copy built artifacts from builder
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /usr/src/app/node_modules/.prisma/client ./node_modules/.prisma/client
 COPY prisma.config.ts ./
 
 # Expose port
