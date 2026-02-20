@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Video {
+  id                String   @id @default(uuid())
+  url               String
+  title             String
+  tags              String[] // Assuming Postgres string array
+  category          String?
+  publishedAt       DateTime
+  adult18plus       Boolean  @default(false)
+  consentVerified   Boolean  @default(false)
+  suspectedIllegal  Boolean  @default(false)
+  teaserAssets      Json?    // Array of asset references
+  thumbnailUrl      String?
+  stats             Json?    // Views, ctr, conv, etc.
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  variants          Variant[]
+  xPosts            XPost[]
+  events            Event[]
+  policyDecisions   PolicyDecision[]
+
+  @@index([publishedAt])
+  @@index([consentVerified, adult18plus, suspectedIllegal])
+}
+
+model Variant {
+  id            String   @id @default(uuid())
+  videoId       String
+  text          String
+  textHash      String   // SHA256 of normalized text
+  style         String?  // e.g. 'direct', 'playful'
+  usedCount     Int      @default(0)
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  video         Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  xPosts        XPost[]
+
+  @@index([videoId])
+  @@index([lastUsedAt])
+}
+
+enum PostStatus {
+  QUEUED
+  POSTED
+  FAILED
+  SKIPPED_DUPLICATE
+  BLOCKED
+}
+
+model XPost {
+  id              String     @id @default(uuid())
+  jobKey          String     @unique // deterministic slot identifier (YYYY-MM-DD|window|slot)
+  videoId         String
+  variantId       String
+  utmId           String?    @unique // 1-to-1 with UtmLink
+  xPostId         String?    // ID returned from X API
+  mediaType       String?    // 'clip' or 'image'
+  mediaAssetRef   String?
+  status          PostStatus @default(QUEUED)
+  errorCode       String?
+  errorMessage    String?
+  postedAt        DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  video           Video      @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  variant         Variant    @relation(fields: [variantId], references: [id])
+  utmLink         UtmLink?   @relation(fields: [utmId], references: [id])
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([videoId])
+}
+
+model UtmLink {
+  id              String   @id @default(uuid())
+  destinationUrl  String
+  utmSource       String   @default("x")
+  utmMedium       String   @default("social")
+  utmCampaign     String
+  utmContent      String
+  utmTerm         String?
+  shortUrl        String?
+  createdAt       DateTime @default(now())
+
+  xPost           XPost?
+  events          Event[]
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  utmId       String?
+  sessionId   String
+  eventType   String   // page_view, video_view, signup, purchase
+  videoId     String?
+  ts          DateTime @default(now())
+  metadata    Json?
+
+  utmLink     UtmLink? @relation(fields: [utmId], references: [id], onDelete: SetNull)
+  video       Video?   @relation(fields: [videoId], references: [id], onDelete: SetNull)
+
+  @@index([utmId, ts])
+  @@index([eventType, ts])
+}
+
+model PolicyDecision {
+  id          String   @id @default(uuid())
+  videoId     String
+  decision    String   // 'allowed', 'blocked'
+  reasons     Json?    // Array of reasons or detail block
+  ts          DateTime @default(now())
+
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
