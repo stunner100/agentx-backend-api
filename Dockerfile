@@ -10,6 +10,7 @@ RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
 COPY tsconfig*.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma/
 
 # Install all dependencies including devDependencies for build
@@ -44,6 +45,7 @@ RUN npm ci --only=production
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
 COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY prisma.config.ts ./
 
 # Expose port
 EXPOSE 3000
