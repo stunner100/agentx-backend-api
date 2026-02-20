@@ -52,4 +52,4 @@ COPY prisma.config.ts ./
 EXPOSE 3000
 
 # Start application (runs migrations first, then starts fastify)
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
